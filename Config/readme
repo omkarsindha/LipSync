@@ -1,0 +1,3 @@
+Step 1: Make an interface with all the IPG outputs as source and Phabrix SDI input as destination
+Step 2: Route Phabrix Output to all IPG inputs
+Step 3: Enter the values

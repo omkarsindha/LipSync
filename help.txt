@@ -1,0 +1,31 @@
+Before the test is started we setup the phabrix for the test
+
+set COM_GEN1_PATTERN_SEL (A/V delay = 3)
+
+Standard
+
+COM_GEN1_LINK_TYPE = 36  (SD = 0, HD = 1, 3GA = 3)
+
+COM_GEN1_LINES = 12  (Set format)
+SD          HD              3G
+525i = 0    720p = 2        720p = 2
+625i = 1    1035i = 3       1080i = 4
+            1080i = 4       1080sf = 5
+            1080sf = 5      1080p = 6
+            1080p = 6
+
+COM_GEN1_RATE = 13(Set frame rate)
+23.98 = 0
+24 = 1
+25 = 2
+29.97 = 3
+30 = 4
+50 = 5
+59.94 = 6
+60 = 7
+COM_ANLYS_AV_DELAY_LEFT  (Delay left) = 2402
+COM_ANLYS_AV_DELAY_RIGHT (Delay right) = 2403
+
+AES67 IP output Packet - VarID = 368@i Value 0 = 125us, Value 1 = 1ms
+Output A&V Sync - under sdi out in decap - VarID = 816.0@i (Timestamp = 1, Bypass = 0)
+Vertical offset 159.0@i just set value you want

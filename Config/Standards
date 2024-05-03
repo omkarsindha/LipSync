@@ -1,0 +1,5 @@
+//Write all the video standards you want testes with space between
+//link types, lines and rate all the invalid formats will be discarded.
+HD 720p 59.94
+HD 1080i 59.94
+3GA 1080p 59.94
