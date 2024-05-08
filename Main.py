@@ -1,28 +1,30 @@
 import os
 import wx
 import wx.adv
-import threading
+from Config import Config
 from Panel import Panel
+
 
 class MainFrame(wx.Frame):
     def __init__(self, *args, **kw):
         super(MainFrame, self).__init__(*args, **kw)
 
-        self.config = wx.Config("LipSync")
-        self.panel = Panel(self, config=self.config)
-
         self.Center()
         self.SetMinSize((400, 400))
-
         menubar = wx.MenuBar()
         helpMenu = wx.Menu()
         helpMenu.Append(wx.ID_ABOUT, "&About")
+        menubar.Append(helpMenu, "&Help")
         self.Bind(wx.EVT_MENU, self.on_about, id=wx.ID_ABOUT)
         self.SetMenuBar(menubar)
 
         self.CreateStatusBar(number=2, style=wx.STB_DEFAULT_STYLE)
         self.SetStatusWidths([-1, 100])
-        self.SetStatusText("This is the status bar", 0)
+        self.SetStatusText("Output view", 0)
+
+        self.wxconfig = wx.Config("LipSync")
+        self.config = Config()
+        self.panel = Panel(self, wxconfig=self.wxconfig, config=self.config)
 
     def on_about(self, event):
         info = wx.adv.AboutDialogInfo()
@@ -37,8 +39,12 @@ class MainFrame(wx.Frame):
         wx.adv.AboutBox(info)
 
 
-if __name__ == "__main__":
+def Main():
     app = wx.App()
-    frame = MainFrame(None, title="Lip Sync Automation", size=(800, 500))
+    frame = MainFrame(None, title="Lip Sync Automation", size=(850, 500))
     frame.Show()
     app.MainLoop()
+
+
+if __name__ == "__main__":
+    Main()

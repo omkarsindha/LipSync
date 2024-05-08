@@ -1,7 +1,0 @@
-//Enter the VAR ID with the value you want to switch it between inside
-//Output AV Sync Mode
-816.0@i 0 1
-//Vertical Offset
-159.0@i 0 4
-//AES67 IP output Packet time
-638@i 0 1
