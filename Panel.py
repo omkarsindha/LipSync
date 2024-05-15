@@ -1,11 +1,9 @@
 import socket
 import threading
 import time
-
 import ahttp
 import phabrixlib
 import wx
-import WebpageMethods
 
 
 class Panel(wx.Panel):
@@ -70,8 +68,8 @@ class Panel(wx.Panel):
         # List Control
         self.list_ctrl = wx.ListCtrl(self, style=wx.LC_REPORT)
         self.list_ctrl.InsertColumn(0, '#', width=40)
-        self.list_ctrl.InsertColumn(1, 'Format', width=70)
-        self.list_ctrl.InsertColumn(2, 'IPG Out Tested', width=100)
+        self.list_ctrl.InsertColumn(1, 'IPG Out Tested', width=100)
+        self.list_ctrl.InsertColumn(2, 'Format', width=70)
         self.list_ctrl.InsertColumn(3, 'OutputAV', width=100)
         self.list_ctrl.InsertColumn(4, 'Vertical Offset', width=100)
         self.list_ctrl.InsertColumn(5, 'AES', width=50)
@@ -121,104 +119,89 @@ class Panel(wx.Panel):
         self.parent.SetStatusText("Test Complete :)")
 
     def on_start_thread(self):
-        for x in range(10):
-            self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
-                                                             "hiii")
-            time.sleep(0.5)
+        # for x in range(10):
+        #     self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
+        #                               "hiii")
+        #     time.sleep(0.5)
+
+        # Getting the UI configuration
+        MAGNUM_IP = self.magnum_input.GetValue()
+        INTERFACE_PORT = self.port_input.GetValue()
+        PHABRIXIP = self.phabrixIP_input.GetValue()
+        DEVICE = self.select_ipg.GetStringSelection()
+        IPG_IP = self.ipg_ip_input.GetValue()
+
+        http = ahttp.start()  # Starting http to connect to the webpage
+        phabrix = phabrixlib.Phabrix(IP=PHABRIXIP, port=2100, timeout=2.0,
+                                     encoding='utf8')  # Connecting to the phabrix
+
+        port = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        port.connect((MAGNUM_IP, int(INTERFACE_PORT)))  # Connecting to magnum interface for routing
+        port.settimeout(3)
+
+        # Setting the phabrix out to AV delay
+        phabrix.SetValue(ID="COM_GEN1_PATTERN_SEL", value=3)
+
+        # setting the ipg output
+        for out in self.config.OUTS:
+            cmd = '.SVABCDEFGHIJKLMNOPQRS%03d,%03d\r' % (1, out)
+            port.send(cmd.encode())
+
+            # Setting the standard on phabrix
+            for format in self.config.PHABRIX_VALUE:
+                phabrix.SetValue(ID="COM_GEN1_LINK_TYPE", value=format[0])  # HD eg
+                phabrix.SetValue(ID="COM_GEN1_LINES", value=format[1])  # 720p eg
+                phabrix.SetValue(ID="COM_GEN1_RATE", value=format[2])  # 59.94 eg
+
+                # Looping the value between 0 and 1 (Bypass and timestamp)
+                for sync in self.config.OUTPUT_AV_SYNC:
+                    http.set_cfgjson(IPG_IP, {f'816.{out-1}@i': sync})
+                    # Setting vertical offset
+                    for v in self.config.VERTICAL_OFFSET:
+                        http.set_cfgjson(IPG_IP, {f'159.{out-1}@i': v})
+                        # Setting the AES67 IP Output packet time
+                        for aes67 in self.config.AES67:
+                            http.set_cfgjson(IPG_IP, {'638@i': aes67})
+                            # Sleeping after setting up all the devices
+                            time.sleep(self.config.DELAY)
+
+                            # Checking if all the values are set
+                            # Declaring the data to be set
+                            aes = ''
+                            outputAV = ''
+                            outputAV_value = http.get_cfgjson(IPG_IP, [f'816.{out-1}@i']).result[f'816.{out-1}@i']
+                            if outputAV_value == 0:
+                                outputAV = "Bypass"
+                            elif outputAV_value == 1:
+                                outputAV = "Timestamp"
+                            voffset = http.get_cfgjson(IPG_IP, [f'159.{out-1}@i']).result[f'159.{out-1}@i']
+
+                            aesValue = http.get_cfgjson(IPG_IP, ['638@i']).result['638@i']
+                            if aesValue == 0:
+                                aes = "125us"
+                            elif aesValue == 1:
+                                aes = "1ms"
+
+                            format = phabrix.get_text(560)
+
+                            # Now reading the left and right value
+                            left_measurement = phabrix.GetText(2402)
+                            right_measurement = phabrix.GetText(2403)
+                            print(f"Values are OutputAV: {outputAV} Vertical Offset: {voffset} AES: {aes}")
+                            print(f"Format on phabrix: {format}")
+                            print(f"Phabrix Delay Right {right_measurement} Left {left_measurement}\n\n")
+                            i = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
+                                                          str(self.list_ctrl.GetItemCount() + 1))
+                            self.list_ctrl.SetItem(i, 1, str(out))
+                            self.list_ctrl.SetItem(i, 2, format)
+                            self.list_ctrl.SetItem(i, 3, outputAV)
+                            self.list_ctrl.SetItem(i, 4, str(voffset))
+                            self.list_ctrl.SetItem(i, 5, aes)
+                            self.list_ctrl.SetItem(i, 6, right_measurement)
+                            self.list_ctrl.SetItem(i, 7, left_measurement)
+                            self.config.test_result.append([len(self.config.test_result)-1, out, format, outputAV, voffset, aes, right_measurement, left_measurement])
+        phabrix.close()
         self.test_in_progress = False
-        # # Getting the UI configuration
-        # MAGNUM_IP = self.magnum_input.GetValue()
-        # INTERFACE_PORT = self.port_input.GetValue()
-        # PHABRIXIP = self.phabrixIP_input.GetValue()
-        # DEVICE = self.select_ipg.GetStringSelection()
-        # IPG_IP = self.ipg_ip_input.GetValue()
-        #
-        # http = ahttp.start()  # Starting http to connect to the webpage
-        # phabrix = phabrixlib.Phabrix(IP=PHABRIXIP, port=2100, timeout=2.0,
-        #                              encoding='utf8')  # Connecting to the phabrix
-        #
-        # port = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # port.connect((MAGNUM_IP, int(INTERFACE_PORT)))  # Connecting to magnum interface for routing
-        # port.settimeout(3)
-        #
-        # # Setting the phabrix out to AV delay
-        # phabrix.SetValue(ID="COM_GEN1_PATTERN_SEL", value=3)
-        #
-        # # Declaring the data to be set
-        # ipgOut = ''
-        # aes = ''
-        # outputAV = ''
-        #
-        # # setting the ipg output
-        # for i in range(18):
-        #     ipgOut = i + 1
-        #     cmd = '.SVABCDEFGHIJKLMNOPQRS%03d,%03d\r' % (1, ipgOut)
-        #     port.send(cmd.encode())
-        #     # Setting the standard on phabrix
-        #     for x in range(3):
-        #         if x == 0:
-        #             phabrix.SetValue(ID="COM_GEN1_LINK_TYPE", value=1)  # HD 720p59.94
-        #             phabrix.SetValue(ID="COM_GEN1_LINES", value=2)  # 720p
-        #             phabrix.SetValue(ID="COM_GEN1_RATE", value=6)  # 59.94
-        #
-        #         elif x == 1:
-        #             phabrix.SetValue(ID="COM_GEN1_LINK_TYPE", value=1)  # HD 1080i59.94
-        #             phabrix.SetValue(ID="COM_GEN1_LINES", value=4)  # 1080i
-        #             phabrix.SetValue(ID="COM_GEN1_RATE", value=6)  # 59.94
-        #
-        #         elif x == 2:
-        #             phabrix.SetValue(ID="COM_GEN1_LINK_TYPE", value=3)  # 3G 1080p59.94
-        #             phabrix.SetValue(ID="COM_GEN1_LINES", value=6)
-        #             phabrix.SetValue(ID="COM_GEN1_RATE", value=6)
-        #         # Looping the value between 0 and 1 (Bypass and timestamp)
-        #         for m in range(2):
-        #             WebpageMethods.set_device_setting(http, IPG_IP, {f'816.{ipgOut}@i': m})
-        #             # Setting vertical offset
-        #             for n in range(2):
-        #                 if n == 0:
-        #                     WebpageMethods.set_device_setting(http, IPG_IP, {f'159.{ipgOut}@i': 0})
-        #                 if n == 1:
-        #                     WebpageMethods.set_device_setting(http, IPG_IP, {f'159.{ipgOut}@i': 4})
-        #                 # Setting the AES67IP
-        #                 for o in range(2):
-        #                     WebpageMethods.set_device_setting(http, IPG_IP, {'638@i': o})
-        #                     time.sleep(3)
-        #                     # Checking if all the values are set
-        #                     outputAV_value = WebpageMethods.get_device_setting(http, IPG_IP, [f'816.{ipgOut}@i'])[
-        #                         f'816.{ipgOut}@i']
-        #                     if outputAV_value == 0:
-        #                         outputAV = "Bypass"
-        #                     elif outputAV_value == 1:
-        #                         outputAV = "Timestamp"
-        #
-        #                     voffset = str(
-        #                         WebpageMethods.get_device_setting(http, IPG_IP, [f'159.{ipgOut}@i'])[f'159.{ipgOut}@i'])
-        #
-        #                     aesValue = WebpageMethods.get_device_setting(http, IPG_IP, ['638@i'])['638@i']
-        #                     if aesValue == 0:
-        #                         aes = "125us"
-        #                     elif aesValue == 1:
-        #                         aes = "1ms"
-        #
-        #                     format = phabrix.get_text(560)
-        #                     # Setting complete now reading the left and right value
-        #
-        #                     left_measurement = phabrix.GetText(2402)
-        #                     right_measurement = phabrix.GetText(2403)
-        #                     print(f"Values are OutputAV: {outputAV} Vertical Offset: {voffset} AES: {aes}")
-        #                     print(f"Format on phabrix: {format}")
-        #                     print(f"Phabrix Delay Right {right_measurement} Left {left_measurement}\n\n")
-        #                     i = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
-        #                                                   str(self.list_ctrl.GetItemCount() + 1))
-        #                     self.list_ctrl.SetItem(i, 1, format)
-        #                     self.list_ctrl.SetItem(i, 2, str(ipgOut))
-        #                     self.list_ctrl.SetItem(i, 3, outputAV)
-        #                     self.list_ctrl.SetItem(i, 4, voffset)
-        #                     self.list_ctrl.SetItem(i, 5, aes)
-        #                     self.list_ctrl.SetItem(i, 6, right_measurement)
-        #                     self.list_ctrl.SetItem(i, 7, left_measurement)
-        #
-        #     phabrix.close()
 
     def on_reload(self, event):
         self.config.load_config()
@@ -229,7 +212,6 @@ class Panel(wx.Panel):
             self.list_ctrl.Hide()
             self.scrolled_text.Show()
             self.parent.SetStatusText("Config view")
-
         else:
             self.scrolled_text.Hide()
             self.list_ctrl.Show()
@@ -248,8 +230,11 @@ class Panel(wx.Panel):
         for output in self.config.OUTS:
             self.scrolled_text.write(str(output) + "\n")
 
+    def save_as_excel(self, event):
+        self.config.save_config()
+
+
 
 if __name__ == '__main__':
     import Main
-
     Main.Main()
