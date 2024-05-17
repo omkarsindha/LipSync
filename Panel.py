@@ -80,7 +80,6 @@ class Panel(wx.Panel):
         self.list_ctrl.InsertColumn(9, 'Max', width=50)
         self.list_ctrl.InsertColumn(10, 'Result', width=80)
 
-
         # Text Control
         self.scrolled_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.VSCROLL)
         self.populate_text_control(self)
@@ -201,17 +200,19 @@ class Panel(wx.Panel):
                             print(n)
                             # Checking if it passed or failed
                             print(self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
-                                + str(aes))
-                            MIN = self.config.EXPECTED[
+                                  + str(aes))
+                            EXP = self.config.EXPECTED.get(
                                 self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
-                                + str(aes)][0]
-                            MAX = self.config.EXPECTED[
-                                self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
-                                + str(aes)][1]
-                            if MIN < float(left_measurement[:-2]) < MAX and MIN < float(right_measurement[:-2]) < MAX:
-                                result = "Pass"
+                                + str(aes), ['?', '?'])
+                            # Checking if the result was not found in text file
+                            if EXP[0] != '?' and EXP[1] != '?':
+                                if EXP[0] < float(left_measurement[:-2]) < EXP[1] and EXP[0] < float(
+                                        right_measurement[:-2]) < EXP[1]:
+                                    result = "Pass"
+                                else:
+                                    result = "Fail"
                             else:
-                                result = "Fail"
+                                result = '?'
 
                             i = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
                                                           str(self.list_ctrl.GetItemCount() + 1))
@@ -222,13 +223,13 @@ class Panel(wx.Panel):
                             self.list_ctrl.SetItem(i, 5, aes)
                             self.list_ctrl.SetItem(i, 6, right_measurement)
                             self.list_ctrl.SetItem(i, 7, left_measurement)
-                            self.list_ctrl.SetItem(i, 8, str(MIN))
-                            self.list_ctrl.SetItem(i, 9, str(MAX))
+                            self.list_ctrl.SetItem(i, 8, str(EXP[0]))
+                            self.list_ctrl.SetItem(i, 9, str(EXP[1]))
                             self.list_ctrl.SetItem(i, 10, result)
 
                             self.config.test_result.append(
                                 [len(self.config.test_result) + 1, out, format, outputAV, voffset, aes,
-                                 right_measurement, left_measurement, MIN, MAX, result])
+                                 right_measurement, left_measurement, EXP[0], EXP[1], result])
         phabrix.close()
         self.test_in_progress = False
 
@@ -295,4 +296,5 @@ class Panel(wx.Panel):
 
 if __name__ == '__main__':
     import Main
+
     Main.Main()

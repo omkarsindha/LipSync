@@ -1,6 +1,6 @@
 import openpyxl
 from openpyxl import utils
-from openpyxl import styles
+from openpyxl.styles import Alignment
 
 LINK_TYPES = ['SD', 'HD', '3GA']
 LINK_LINE_SUPPORTED = {
@@ -104,23 +104,28 @@ class Config:
                 if "END_RECORD" in line:
                     record = False
                 if record:
-                    # Checking if it is a valid standard
+                    # Checking if user made a mistake
                     FORMAT = line.strip().split(' ')
                     LINK = PHABRIX_VALUES_LINK.get(FORMAT[0], 'INVALID')
                     LINE = PHABRIX_VALUES_LINE.get(FORMAT[1], 'INVALID')
                     RATE = PHABRIX_VALUES_FRAME_RATE.get(FORMAT[2], 'INVALID')
-                    self.PHABRIX_VALUE.append([LINK, LINE, RATE])
                     if LINK != "INVALID" and LINE != "INVALID" and RATE != "INVALID":
-                        self.FORMATS.append(FORMAT)
+                        # Checking if format exists or not
+                        if FORMAT[1] in LINK_LINE_SUPPORTED[FORMAT[0]] and FORMAT[2] in FRAME_RATES_SUPPORTED:
+                            self.PHABRIX_VALUE.append([LINK, LINE, RATE])  # Appending them as is as it is valid
+                            self.FORMATS.append(FORMAT)
+                        else:
+                            self.PHABRIX_VALUE.append(['INVALID', 'INVALID', 'INVALID'])
+                            self.FORMATS.append(["Not a valid format", "", "(Check testcongif file"])
                     else:
-                        self.FORMATS.append(["INVALID", "", "(Check test config)"])
+                        self.FORMATS.append(["INVALID", "", "(Check testconfig file)"])
 
                 if "STANDARDS" in line:
                     record = True
 
     def save_config(self, filename):
-        HEADINGS = ["#", "IPG Out Tested", "Format on Phabrix", "OutputAv", "Vertical Offset", "AES", "Delay Right", "Delay Left","Min", "Max", "Result"]
-        CENTERED = openpyxl.styles.Alignment(horizontal='center')
+        HEADINGS = ["#", "IPG Out Tested", "Format on Phabrix", "OutputAv", "Vertical Offset", "AES", "Delay Right",
+                    "Delay Left", "Min", "Max", "Result"]
         workbook = openpyxl.Workbook(write_only=True)
         get_col_let = utils.get_column_letter
         worksheet = workbook.create_sheet()
@@ -142,6 +147,9 @@ class Config:
         worksheet.append(cells)
         for result in self.test_result:
             worksheet.append(result)
+        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=worksheet.max_column):
+            for cell in row:
+                cell.alignment = Alignment(horizontal='left')
         workbook.save(filename)
 
 
