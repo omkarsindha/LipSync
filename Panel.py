@@ -20,13 +20,9 @@ class Panel(wx.Panel):
         main_box_sizer = wx.StaticBoxSizer(main_box)
 
         # Making IPG selection sizer
-        ipg_box = wx.StaticBox(self, label='IPG and IP Address')
+        ipg_box = wx.StaticBox(self, label='IPG IP Address')
         ipg_box_sizer = wx.StaticBoxSizer(ipg_box)
-        ipgs = config.IPGS
-        self.select_ipg = wx.Choice(self, choices=ipgs)
-        self.select_ipg.SetStringSelection(wxconfig.Read("/device", defaultVal="570 A9"))
         self.ipg_ip_input = wx.TextCtrl(self, size=(100, -1), value=wxconfig.Read('/ipgIP', defaultVal=""))
-        ipg_box_sizer.Add(self.select_ipg, 0, wx.ALL, 5)
         ipg_box_sizer.Add(self.ipg_ip_input, 0, wx.EXPAND | wx.ALL, 5)
 
         # Making Magnum and port selection sizer
@@ -46,11 +42,14 @@ class Panel(wx.Panel):
         self.start_button = wx.Button(self, label="Start")
         self.start_button.Bind(wx.EVT_BUTTON, self.on_start)
 
+        self.toggle_button = wx.Button(self, label="Toggle View")
+        self.toggle_button.Bind(wx.EVT_BUTTON, self.on_toggle_view)
+
         self.reload_button = wx.Button(self, label="Reload Config")
         self.reload_button.Bind(wx.EVT_BUTTON, self.on_reload)
 
-        self.toggle_button = wx.Button(self, label="Toggle View")
-        self.toggle_button.Bind(wx.EVT_BUTTON, self.on_toggle_view)
+        self.edit_button = wx.Button(self, label="Edit Config")
+        self.edit_button.Bind(wx.EVT_BUTTON, self.on_edit_config)
 
         self.grid = wx.GridBagSizer(4, 4)
 
@@ -60,9 +59,11 @@ class Panel(wx.Panel):
         self.grid.Add(phabrix_box_sizer, pos=(0, 2), flag=wx.TOP, border=10)
         self.grid.Add(self.start_button, pos=(0, 3), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
                       border=10)
-        self.grid.Add(self.reload_button, pos=(0, 4), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+        self.grid.Add(self.toggle_button, pos=(0, 4), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
                       border=10)
-        self.grid.Add(self.toggle_button, pos=(0, 5), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+        self.grid.Add(self.edit_button, pos=(0, 5), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+                      border=10)
+        self.grid.Add(self.reload_button, pos=(0, 6), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
                       border=10)
         main_box_sizer.Add(self.grid, 0, wx.EXPAND | wx.ALL, 5)
 
@@ -134,7 +135,6 @@ class Panel(wx.Panel):
         MAGNUM_IP = self.magnum_input.GetValue()
         INTERFACE_PORT = self.port_input.GetValue()
         PHABRIXIP = self.phabrixIP_input.GetValue()
-        DEVICE = self.select_ipg.GetStringSelection()
         IPG_IP = self.ipg_ip_input.GetValue()
 
         http = ahttp.start()  # Starting http to connect to the webpage
@@ -196,11 +196,8 @@ class Panel(wx.Panel):
                             # Now reading the left and right value
                             left_measurement = phabrix.GetText(2402)
                             right_measurement = phabrix.GetText(2403)
-                            print(self.config.FORMATS)
-                            print(n)
+
                             # Checking if it passed or failed
-                            print(self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
-                                  + str(aes))
                             EXP = self.config.EXPECTED.get(
                                 self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
                                 + str(aes), ['?', '?'])
@@ -237,6 +234,26 @@ class Panel(wx.Panel):
         self.config.load_config()
         self.config.load_expected()
         self.populate_text_control(self)
+
+    def on_edit_config(self, event):
+        file_path = "Config/testconfig.txt"
+        text_editor_command = "notepad"
+
+        def run_code():
+            os.system(f"{text_editor_command} {file_path}")
+
+        edit_thread = threading.Thread(target=run_code)
+        edit_thread.start()
+
+    def on_edit_expected(self, event):
+        file_path = "Config/expected.txt"
+        text_editor_command = "notepad"
+
+        def run_code():
+            os.system(f"{text_editor_command} {file_path}")
+
+        edit_thread = threading.Thread(target=run_code)
+        edit_thread.start()
 
     def on_toggle_view(self, event):
         if self.list_ctrl.IsShown():
@@ -280,7 +297,7 @@ class Panel(wx.Panel):
                 self.scrolled_text.write("1ms \n")
 
     def save_as_excel(self, event):
-        open_path = self.wxconfig.Read("/last_config_path", os.getcwd())
+        open_path = os.getcwd()
         WILDCARDS = "MS Excel files (*.xlsx)|*.xlsx"
         fileDialog = wx.FileDialog(self,
                                    message="Save as Excel",

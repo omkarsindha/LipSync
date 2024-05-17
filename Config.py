@@ -59,7 +59,7 @@ class Config:
 
     def load_expected(self):
         self.EXPECTED = {}
-        with open("Config/expected", "r") as file:
+        with open("Config/expected.txt", "r") as file:
             for line in file:
                 if "//" in line:
                     continue
@@ -80,7 +80,7 @@ class Config:
         self.FORMATS = []
         self.DELAY = 0
         record = False
-        with open("Config/testconfig", "r") as file:
+        with open("Config/testconfig.txt", "r") as file:
             for line in file:
                 # Checking if the line is a comment or not
                 if "//" in line:
@@ -111,12 +111,12 @@ class Config:
                     RATE = PHABRIX_VALUES_FRAME_RATE.get(FORMAT[2], 'INVALID')
                     if LINK != "INVALID" and LINE != "INVALID" and RATE != "INVALID":
                         # Checking if format exists or not
-                        if FORMAT[1] in LINK_LINE_SUPPORTED[FORMAT[0]] and FORMAT[2] in FRAME_RATES_SUPPORTED:
+                        if FORMAT[1] in LINK_LINE_SUPPORTED[FORMAT[0]] and FORMAT[2] in FRAME_RATES_SUPPORTED[FORMAT[1]]:
                             self.PHABRIX_VALUE.append([LINK, LINE, RATE])  # Appending them as is as it is valid
                             self.FORMATS.append(FORMAT)
                         else:
                             self.PHABRIX_VALUE.append(['INVALID', 'INVALID', 'INVALID'])
-                            self.FORMATS.append(["Not a valid format", "", "(Check testcongif file"])
+                            self.FORMATS.append(["Not a valid format", "", "(Check testcongif file)"])
                     else:
                         self.FORMATS.append(["INVALID", "", "(Check testconfig file)"])
 

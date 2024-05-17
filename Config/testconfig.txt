@@ -1,5 +1,4 @@
-//Mention the delay you want between each test here
-//Keep it above 3 or you might get failed results
+//Mention the delay you want between each test here (keep it above 3 for best results)
 DELAY
 3
 
@@ -22,6 +21,6 @@ AES
 //Write all the video standards you want tested
 //Invalid formats will be discarded.
 STANDARDS
-H 720p 59.94
+HD 720p 59.94
 HD 1080i 59.94
 END_RECORD
