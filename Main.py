@@ -19,10 +19,14 @@ class MainFrame(wx.Frame):
         menubar = wx.MenuBar()
         helpMenu = wx.Menu()
         saveMenu = wx.Menu()
+        editMenu = wx.Menu()
         helpMenu.Append(wx.ID_ABOUT, "&About")
         helpMenu.Append(wx.ID_FILE1, "How to Setup")
         helpMenu.Append(wx.ID_FILE2, "How to Navigate")
         menubar.Append(helpMenu, "&Help")
+        editMenu.Append(wx.ID_FILE4, "Edit Config")
+        editMenu.Append(wx.ID_FILE5, "Edit Expected")
+        menubar.Append(editMenu, "&Edit")
         saveMenu.Append(wx.ID_FILE3, "Save as excel")
         menubar.Append(saveMenu, "&Save")
 
@@ -31,6 +35,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_how_to_setup, id=wx.ID_FILE1)
         self.Bind(wx.EVT_MENU, self.on_how_to_navigate, id=wx.ID_FILE2)
         self.Bind(wx.EVT_MENU, self.panel.save_as_excel, id=wx.ID_FILE3)
+        self.Bind(wx.EVT_MENU, self.panel.on_edit_config, id=wx.ID_FILE4)
+        self.Bind(wx.EVT_MENU, self.panel.on_edit_expected, id=wx.ID_FILE5)
         self.SetMenuBar(menubar)
 
         self.CreateStatusBar(number=2, style=wx.STB_DEFAULT_STYLE)
