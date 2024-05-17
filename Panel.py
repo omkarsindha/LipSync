@@ -1,3 +1,4 @@
+import os
 import socket
 import threading
 import time
@@ -75,6 +76,10 @@ class Panel(wx.Panel):
         self.list_ctrl.InsertColumn(5, 'AES', width=50)
         self.list_ctrl.InsertColumn(6, 'DELAY RIGHT', width=100)
         self.list_ctrl.InsertColumn(7, 'DELAY LEFT', width=100)
+        self.list_ctrl.InsertColumn(8, 'Min', width=50)
+        self.list_ctrl.InsertColumn(9, 'Max', width=50)
+        self.list_ctrl.InsertColumn(10, 'Result', width=80)
+
 
         # Text Control
         self.scrolled_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.VSCROLL)
@@ -97,10 +102,11 @@ class Panel(wx.Panel):
         self.wxconfig.Write("/ipgIP", self.ipg_ip_input.GetValue())
 
         # Setting up UI
+        self.list_ctrl.DeleteAllItems()
+        self.reload_button.Disable()
         if self.scrolled_text.IsShown():
             self.scrolled_text.Hide()
             self.list_ctrl.Show()
-            self.toggle_button.Disable()
         self.main_vbox.Layout()
 
         # Starting the thread
@@ -117,6 +123,7 @@ class Panel(wx.Panel):
                 self.parent.SetStatusText("Test in progress" + "." * (x + 1))
                 time.sleep(0.5)
         self.parent.SetStatusText("Test Complete :)")
+        self.reload_button.Enable()
 
     def on_start_thread(self):
         # for x in range(10):
@@ -148,33 +155,37 @@ class Panel(wx.Panel):
             port.send(cmd.encode())
 
             # Setting the standard on phabrix
-            for format in self.config.PHABRIX_VALUE:
+            for n, format in enumerate(self.config.PHABRIX_VALUE):
+                if format[0] == "INVALID" or format[1] == "INVALID" or format[2] == "INVALID":
+                    continue
+
                 phabrix.SetValue(ID="COM_GEN1_LINK_TYPE", value=format[0])  # HD eg
                 phabrix.SetValue(ID="COM_GEN1_LINES", value=format[1])  # 720p eg
                 phabrix.SetValue(ID="COM_GEN1_RATE", value=format[2])  # 59.94 eg
 
                 # Looping the value between 0 and 1 (Bypass and timestamp)
                 for sync in self.config.OUTPUT_AV_SYNC:
-                    http.set_cfgjson(IPG_IP, {f'816.{out-1}@i': sync})
+                    http.set_cfgjson(IPG_IP, {f'816.{out - 1}@i': sync})
                     # Setting vertical offset
                     for v in self.config.VERTICAL_OFFSET:
-                        http.set_cfgjson(IPG_IP, {f'159.{out-1}@i': v})
+                        http.set_cfgjson(IPG_IP, {f'159.{out - 1}@i': v})
                         # Setting the AES67 IP Output packet time
                         for aes67 in self.config.AES67:
                             http.set_cfgjson(IPG_IP, {'638@i': aes67})
                             # Sleeping after setting up all the devices
                             time.sleep(self.config.DELAY)
 
+                            # Setting values complete
                             # Checking if all the values are set
                             # Declaring the data to be set
                             aes = ''
                             outputAV = ''
-                            outputAV_value = http.get_cfgjson(IPG_IP, [f'816.{out-1}@i']).result[f'816.{out-1}@i']
+                            outputAV_value = http.get_cfgjson(IPG_IP, [f'816.{out - 1}@i']).result[f'816.{out - 1}@i']
                             if outputAV_value == 0:
                                 outputAV = "Bypass"
                             elif outputAV_value == 1:
                                 outputAV = "Timestamp"
-                            voffset = http.get_cfgjson(IPG_IP, [f'159.{out-1}@i']).result[f'159.{out-1}@i']
+                            voffset = http.get_cfgjson(IPG_IP, [f'159.{out - 1}@i']).result[f'159.{out - 1}@i']
 
                             aesValue = http.get_cfgjson(IPG_IP, ['638@i']).result['638@i']
                             if aesValue == 0:
@@ -182,14 +193,26 @@ class Panel(wx.Panel):
                             elif aesValue == 1:
                                 aes = "1ms"
 
-                            format = phabrix.get_text(560)
-
+                            format = phabrix.get_text(560)  # Format on phabrix
                             # Now reading the left and right value
                             left_measurement = phabrix.GetText(2402)
                             right_measurement = phabrix.GetText(2403)
-                            print(f"Values are OutputAV: {outputAV} Vertical Offset: {voffset} AES: {aes}")
-                            print(f"Format on phabrix: {format}")
-                            print(f"Phabrix Delay Right {right_measurement} Left {left_measurement}\n\n")
+                            print(self.config.FORMATS)
+                            print(n)
+                            # Checking if it passed or failed
+                            print(self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
+                                + str(aes))
+                            MIN = self.config.EXPECTED[
+                                self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
+                                + str(aes)][0]
+                            MAX = self.config.EXPECTED[
+                                self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
+                                + str(aes)][1]
+                            if MIN < float(left_measurement[:-2]) < MAX and MIN < float(right_measurement[:-2]) < MAX:
+                                result = "Pass"
+                            else:
+                                result = "Fail"
+
                             i = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
                                                           str(self.list_ctrl.GetItemCount() + 1))
                             self.list_ctrl.SetItem(i, 1, str(out))
@@ -199,12 +222,19 @@ class Panel(wx.Panel):
                             self.list_ctrl.SetItem(i, 5, aes)
                             self.list_ctrl.SetItem(i, 6, right_measurement)
                             self.list_ctrl.SetItem(i, 7, left_measurement)
-                            self.config.test_result.append([len(self.config.test_result)-1, out, format, outputAV, voffset, aes, right_measurement, left_measurement])
+                            self.list_ctrl.SetItem(i, 8, str(MIN))
+                            self.list_ctrl.SetItem(i, 9, str(MAX))
+                            self.list_ctrl.SetItem(i, 10, result)
+
+                            self.config.test_result.append(
+                                [len(self.config.test_result) + 1, out, format, outputAV, voffset, aes,
+                                 right_measurement, left_measurement, MIN, MAX, result])
         phabrix.close()
         self.test_in_progress = False
 
     def on_reload(self, event):
         self.config.load_config()
+        self.config.load_expected()
         self.populate_text_control(self)
 
     def on_toggle_view(self, event):
@@ -224,15 +254,43 @@ class Panel(wx.Panel):
 
         self.scrolled_text.write("\n\n\nFormats being tested:\n")
         for format in self.config.FORMATS:
-            self.scrolled_text.write(format)
+            self.scrolled_text.write(f"{format[0]} {format[1]} {format[2]}\n")
 
-        self.scrolled_text.write("\n\n\nIPG outputs being tested:\n")
+        self.scrolled_text.write("\n\nIPG outputs being tested:\n")
         for output in self.config.OUTS:
             self.scrolled_text.write(str(output) + "\n")
 
-    def save_as_excel(self, event):
-        self.config.save_config()
+        self.scrolled_text.write("\n\nOutput AV sync modes selected for testing:\n")
+        for mode in self.config.OUTPUT_AV_SYNC:
+            if mode == 0:
+                self.scrolled_text.write("Bypass \n")
+            if mode == 1:
+                self.scrolled_text.write("Timestamp \n")
 
+        self.scrolled_text.write("\n\nVertical offset:\n")
+        for offset in self.config.OUTPUT_AV_SYNC:
+            self.scrolled_text.write(str(offset) + "\n")
+
+        self.scrolled_text.write("\n\nAES67 IP output Packet time:\n")
+        for aes in self.config.AES67:
+            if aes == 0:
+                self.scrolled_text.write("125us \n")
+            if aes == 1:
+                self.scrolled_text.write("1ms \n")
+
+    def save_as_excel(self, event):
+        open_path = self.wxconfig.Read("/last_config_path", os.getcwd())
+        WILDCARDS = "MS Excel files (*.xlsx)|*.xlsx"
+        fileDialog = wx.FileDialog(self,
+                                   message="Save as Excel",
+                                   wildcard=WILDCARDS,
+                                   defaultDir=open_path,
+                                   style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        if fileDialog.ShowModal() == wx.ID_CANCEL:
+            return
+        save_filename = fileDialog.GetPath()
+        self.config.save_config(save_filename)
+        fileDialog.Destroy()
 
 
 if __name__ == '__main__':

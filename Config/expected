@@ -1,4 +1,9 @@
-HD 720p 59.94 min_value max_value
-HD 1080i 59.94 min_value max_value
-3GA 1080p 59.94 min_value max_value
-
+1080i 59.94 Bypass 0 125us -60 -70
+1080i 59.94 Bypass 0 1ms -60 -70
+1080i 59.94 Bypass 4 125us -20 -40
+1080i 59.94 Bypass 4 1ms -20 -40
+1080i 59.94 Timestamp 0 125us +0.5 +2.5
+1080i 59.94 Timestamp 0 1ms +0.5 +2.5
+1080i 59.94 Timestamp 4 125us +0.5 +2.5
+1080i 59.94 Timestamp 4 1ms +0.5 +2.5
+END
