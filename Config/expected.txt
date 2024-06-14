@@ -1,7 +1,7 @@
-1080i 59.94 Bypass 0 125us -60 -70
-1080i 59.94 Bypass 0 1ms -60 -70
-1080i 59.94 Bypass 4 125us -20 -40
-1080i 59.94 Bypass 4 1ms -20 -40
+1080i 59.94 Bypass 0 125us -70 -60
+1080i 59.94 Bypass 0 1ms -70 -60
+1080i 59.94 Bypass 4 125us -40 -20
+1080i 59.94 Bypass 4 1ms -40 -20
 1080i 59.94 Timestamp 0 125us +0.5 +2.5
 1080i 59.94 Timestamp 0 1ms +0.5 +2.5
 1080i 59.94 Timestamp 4 125us +0.5 +2.5

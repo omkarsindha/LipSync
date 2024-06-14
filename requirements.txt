@@ -1,3 +1,4 @@
 wxPython~=4.2.1
 simplejson~=3.19.2
 openpyxl~=3.1.2
+

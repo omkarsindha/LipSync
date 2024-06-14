@@ -1,14 +1,14 @@
 //Mention the delay you want between each test here (keep it above 3 for best results)
 DELAY
-3
+5
 
 //Write all the IPG outputs you want to test separated by space
 IPGOUTS
-3 7 8
+3 7
 
 //Enter 0 for bypass, 1 for timestamp and 0 1 for both
 OUTPUT_AV_SYNC
-1 0
+0 1
 
 //Enter Vertical offset however many choices u like separated by space
 VERTICAL_OFFSET
@@ -21,6 +21,6 @@ AES
 //Write all the video standards you want tested
 //Invalid formats will be discarded.
 STANDARDS
-HD 720p 59.94
 HD 1080i 59.94
+HD 720p 59.94
 END_RECORD

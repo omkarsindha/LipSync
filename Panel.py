@@ -51,40 +51,53 @@ class Panel(wx.Panel):
         self.edit_button = wx.Button(self, label="Edit Config")
         self.edit_button.Bind(wx.EVT_BUTTON, self.on_edit_config)
 
-        self.grid = wx.GridBagSizer(4, 4)
+        grid = wx.GridBagSizer(4, 4)
 
-        self.grid.Add(ipg_box_sizer, pos=(0, 0), flag=wx.TOP | wx.LEFT | wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL,
-                      border=10)
-        self.grid.Add(magnum_box_sizer, pos=(0, 1), flag=wx.TOP, border=10)
-        self.grid.Add(phabrix_box_sizer, pos=(0, 2), flag=wx.TOP, border=10)
-        self.grid.Add(self.start_button, pos=(0, 3), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
-                      border=10)
-        self.grid.Add(self.toggle_button, pos=(0, 4), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
-                      border=10)
-        self.grid.Add(self.edit_button, pos=(0, 5), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
-                      border=10)
-        self.grid.Add(self.reload_button, pos=(0, 6), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
-                      border=10)
-        main_box_sizer.Add(self.grid, 0, wx.EXPAND | wx.ALL, 5)
+        grid.Add(ipg_box_sizer, pos=(0, 0), flag=wx.TOP | wx.LEFT | wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL,
+                 border=10)
+        grid.Add(magnum_box_sizer, pos=(0, 1), flag=wx.TOP, border=10)
+        grid.Add(phabrix_box_sizer, pos=(0, 2), flag=wx.TOP, border=10)
+        grid.Add(self.start_button, pos=(0, 3), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+                 border=10)
+        grid.Add(self.toggle_button, pos=(0, 4), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+                 border=10)
+        grid.Add(self.edit_button, pos=(0, 5), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+                 border=10)
+        grid.Add(self.reload_button, pos=(0, 6), flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+                 border=10)
+        main_box_sizer.Add(grid, 0, wx.EXPAND | wx.ALL, 5)
 
         # List Control
         self.list_ctrl = wx.ListCtrl(self, style=wx.LC_REPORT)
-        self.list_ctrl.InsertColumn(0, '#', width=40)
-        self.list_ctrl.InsertColumn(1, 'IPG Out Tested', width=100)
-        self.list_ctrl.InsertColumn(2, 'Format', width=70)
-        self.list_ctrl.InsertColumn(3, 'OutputAV', width=100)
-        self.list_ctrl.InsertColumn(4, 'Vertical Offset', width=100)
-        self.list_ctrl.InsertColumn(5, 'AES', width=50)
-        self.list_ctrl.InsertColumn(6, 'DELAY RIGHT', width=100)
-        self.list_ctrl.InsertColumn(7, 'DELAY LEFT', width=100)
-        self.list_ctrl.InsertColumn(8, 'Min', width=50)
-        self.list_ctrl.InsertColumn(9, 'Max', width=50)
-        self.list_ctrl.InsertColumn(10, 'Result', width=80)
+        self.list_ctrl.InsertColumn(0, 'Result', width=60)
+        self.list_ctrl.InsertColumn(1, '#', width=40)
+        self.list_ctrl.InsertColumn(2, 'IPG Out Tested', width=100)
+        self.list_ctrl.InsertColumn(3, 'Format', width=70)
+        self.list_ctrl.InsertColumn(4, 'OutputAV', width=100)
+        self.list_ctrl.InsertColumn(5, 'Vertical Offset', width=100)
+        self.list_ctrl.InsertColumn(6, 'AES', width=50)
+        self.list_ctrl.InsertColumn(7, 'DELAY RIGHT', width=100)
+        self.list_ctrl.InsertColumn(8, 'DELAY LEFT', width=100)
+        self.list_ctrl.InsertColumn(9, 'Min', width=50)
+        self.list_ctrl.InsertColumn(10, 'Max', width=50)
 
         # Text Control
         self.scrolled_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.VSCROLL)
         self.populate_text_control(self)
         self.scrolled_text.Hide()
+
+        # Image list
+        self.image_list = wx.ImageList(16, 16)
+
+        # Load your own img and add them to the ImageList
+        self.img_pass = wx.Image('img/pass.png', wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+        self.img_fail = wx.Image('img/fail.png', wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+        self.img_neutral = wx.Image('img/question.png', wx.BITMAP_TYPE_PNG).ConvertToBitmap()
+
+        self.idx_pass = self.image_list.Add(self.img_pass)
+        self.idx_fail = self.image_list.Add(self.img_fail)
+        self.idx_neutral = self.image_list.Add(self.img_neutral)
+        self.list_ctrl.AssignImageList(self.image_list, wx.IMAGE_LIST_SMALL)
 
         self.main_vbox.Add(main_box_sizer, flag=wx.RIGHT | wx.ALIGN_CENTER)
         self.main_vbox.Add(self.list_ctrl, proportion=1, flag=wx.EXPAND | wx.ALL, border=10)
@@ -95,7 +108,6 @@ class Panel(wx.Panel):
 
     def on_start(self, event):
         # saving to configuration
-        self.wxconfig.Write("/device", self.select_ipg.GetStringSelection())
         self.wxconfig.Write("/magnumIP", self.magnum_input.GetValue())
         self.wxconfig.Write("/port", self.port_input.GetValue())
         self.wxconfig.Write("/phabrixIP", self.phabrixIP_input.GetValue())
@@ -126,10 +138,14 @@ class Panel(wx.Panel):
         self.reload_button.Enable()
 
     def on_start_thread(self):
-        # for x in range(10):
-        #     self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
-        #                               "hiii")
-        #     time.sleep(0.5)
+
+        # for i in range(5):
+        #     index = self.list_ctrl.InsertItem(i, '')
+        #     self.list_ctrl.SetItem(index, 1, 'Item %d' % i)
+        #     self.list_ctrl.SetItem(index, 2, 'Image %d' % i)  # Set the image in the third column
+        #     if i%2 == 0:
+        #         self.list_ctrl.SetItemImage(index, self.idx_neutral)
+        #     time.sleep(1)
 
         # Getting the UI configuration
         MAGNUM_IP = self.magnum_input.GetValue()
@@ -201,10 +217,11 @@ class Panel(wx.Panel):
                             EXP = self.config.EXPECTED.get(
                                 self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
                                 + str(aes), ['?', '?'])
+
                             # Checking if the result was not found in text file
                             if EXP[0] != '?' and EXP[1] != '?':
-                                if EXP[0] < float(left_measurement[:-2]) < EXP[1] and EXP[0] < float(
-                                        right_measurement[:-2]) < EXP[1]:
+                                if EXP[0] <= float(left_measurement[:-2]) <= EXP[1] and EXP[0] <= float(
+                                        right_measurement[:-2]) <= EXP[1]:
                                     result = "Pass"
                                 else:
                                     result = "Fail"
@@ -212,23 +229,30 @@ class Panel(wx.Panel):
                                 result = '?'
 
                             i = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
-                                                          str(self.list_ctrl.GetItemCount() + 1))
-                            self.list_ctrl.SetItem(i, 1, str(out))
-                            self.list_ctrl.SetItem(i, 2, format)
-                            self.list_ctrl.SetItem(i, 3, outputAV)
-                            self.list_ctrl.SetItem(i, 4, str(voffset))
-                            self.list_ctrl.SetItem(i, 5, aes)
-                            self.list_ctrl.SetItem(i, 6, right_measurement)
-                            self.list_ctrl.SetItem(i, 7, left_measurement)
-                            self.list_ctrl.SetItem(i, 8, str(EXP[0]))
-                            self.list_ctrl.SetItem(i, 9, str(EXP[1]))
-                            self.list_ctrl.SetItem(i, 10, result)
+                                                          '')
+                            if result == 'Pass':
+                                self.list_ctrl.SetItemImage(i, self.idx_pass)
+                            elif result == 'Fail':
+                                self.list_ctrl.SetItemImage(i, self.idx_fail)
+                            elif result == '?':
+                                self.list_ctrl.SetItemImage(i, self.idx_neutral)
+                            self.list_ctrl.SetItem(i, 1, str(i + 1))
+                            self.list_ctrl.SetItem(i, 2, str(out))
+                            self.list_ctrl.SetItem(i, 3, format)
+                            self.list_ctrl.SetItem(i, 4, outputAV)
+                            self.list_ctrl.SetItem(i, 5, str(voffset))
+                            self.list_ctrl.SetItem(i, 6, aes)
+                            self.list_ctrl.SetItem(i, 7, right_measurement)
+                            self.list_ctrl.SetItem(i, 8, left_measurement)
+                            self.list_ctrl.SetItem(i, 9, str(EXP[0]))
+                            self.list_ctrl.SetItem(i, 10, str(EXP[1]))
 
                             self.config.test_result.append(
                                 [len(self.config.test_result) + 1, out, format, outputAV, voffset, aes,
                                  right_measurement, left_measurement, EXP[0], EXP[1], result])
         phabrix.close()
         self.test_in_progress = False
+        print(self.config.test_result)
 
     def on_reload(self, event):
         self.config.load_config()
@@ -286,7 +310,7 @@ class Panel(wx.Panel):
                 self.scrolled_text.write("Timestamp \n")
 
         self.scrolled_text.write("\n\nVertical offset:\n")
-        for offset in self.config.OUTPUT_AV_SYNC:
+        for offset in self.config.VERTICAL_OFFSET:
             self.scrolled_text.write(str(offset) + "\n")
 
         self.scrolled_text.write("\n\nAES67 IP output Packet time:\n")

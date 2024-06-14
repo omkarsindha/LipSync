@@ -45,7 +45,7 @@ class MainFrame(wx.Frame):
 
     def on_about(self, event):
         info = wx.adv.AboutDialogInfo()
-        info.SetName('Switching UI')
+        info.SetName('Lip Sync Automation')
         info.SetDescription(
             "Python version 3.11.7\n" +
             "Powered by wxPython %s\n" % (wx.version()) +
@@ -59,10 +59,11 @@ class MainFrame(wx.Frame):
         info = wx.adv.AboutDialogInfo()
         info.SetName('How to setup this automation?')
         info.SetDescription(
-            "Step 1: Make an interface with all the IPG outputs as source and Phabrix SDI input as destination\n\n" +
+            "Step 1: Make an interface with all the IPG outputs as source and Phabrix SDI input as destination, "
+            "fill the interface port number in the UI\n\n" +
             "Step 2: Route Phabrix Output to all IPG inputs\n\n" +
             "Step 3: Fill the test config file as per test requirements\n\n" +
-            "Step 4: Fill in the interface port number in the UI"
+            "Step 4: Change the expected values if required from 'Edit -> Edit Expected'"
         )
         wx.adv.AboutBox(info)
 

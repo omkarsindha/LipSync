@@ -39,12 +39,12 @@ PHABRIX_VALUES_FRAME_RATE = {
     '59.94': 6,
     '60': 7
 }
+IPGS = ['570 A9', '570 X-19', 'evIPG-12G', 'evIPG-3G']
 
 
 class Config:
 
     def __init__(self):
-        self.IPGS = ['570 A9', '570 X-19', 'evIPG-12G', 'evIPG-3G']
         self.PHABRIX_VALUE = []
         self.FORMATS = []
         self.OUTPUT_AV_SYNC = []
@@ -111,7 +111,8 @@ class Config:
                     RATE = PHABRIX_VALUES_FRAME_RATE.get(FORMAT[2], 'INVALID')
                     if LINK != "INVALID" and LINE != "INVALID" and RATE != "INVALID":
                         # Checking if format exists or not
-                        if FORMAT[1] in LINK_LINE_SUPPORTED[FORMAT[0]] and FORMAT[2] in FRAME_RATES_SUPPORTED[FORMAT[1]]:
+                        if FORMAT[1] in LINK_LINE_SUPPORTED[FORMAT[0]] and FORMAT[2] in \
+                                FRAME_RATES_SUPPORTED[FORMAT[1]]:
                             self.PHABRIX_VALUE.append([LINK, LINE, RATE])  # Appending them as is as it is valid
                             self.FORMATS.append(FORMAT)
                         else:
@@ -126,10 +127,14 @@ class Config:
     def save_config(self, filename):
         HEADINGS = ["#", "IPG Out Tested", "Format on Phabrix", "OutputAv", "Vertical Offset", "AES", "Delay Right",
                     "Delay Left", "Min", "Max", "Result"]
-        workbook = openpyxl.Workbook(write_only=True)
+        workbook = openpyxl.Workbook()
+
         get_col_let = utils.get_column_letter
-        worksheet = workbook.create_sheet()
-        worksheet.title = "IPG Lip Sync test results"
+        default_sheet = workbook.active
+        workbook.remove(default_sheet)
+
+        worksheet = workbook.create_sheet(title="IPG Lip Sync test results")
+
         worksheet.column_dimensions[get_col_let(1)].width = 3
         worksheet.column_dimensions[get_col_let(2)].width = 16
         worksheet.column_dimensions[get_col_let(3)].width = 18
@@ -141,15 +146,15 @@ class Config:
         worksheet.column_dimensions[get_col_let(9)].width = 12
         worksheet.column_dimensions[get_col_let(10)].width = 12
 
-        cells = [openpyxl.cell.WriteOnlyCell(worksheet) for _ in range(len(HEADINGS))]
-        for count, heading in enumerate(HEADINGS):
-            cells[count].value = HEADINGS[count]
-        worksheet.append(cells)
+        worksheet.append(HEADINGS)
+
         for result in self.test_result:
             worksheet.append(result)
-        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=worksheet.max_column):
+
+        for row in worksheet.iter_rows():
             for cell in row:
                 cell.alignment = Alignment(horizontal='left')
+
         workbook.save(filename)
 
 
