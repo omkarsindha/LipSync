@@ -14,6 +14,10 @@ class Panel(wx.Panel):
         self.wxconfig = wxconfig
         self.config = config
         self.parent = parent
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
+        self.animation_counter = 0
+
         self.main_vbox = wx.BoxSizer(wx.VERTICAL)
         main_box = wx.StaticBox(self, label='Test Configuration')
         main_box.SetFont(wx.Font(wx.FontInfo(12).Bold()))
@@ -113,146 +117,164 @@ class Panel(wx.Panel):
         self.wxconfig.Write("/phabrixIP", self.phabrixIP_input.GetValue())
         self.wxconfig.Write("/ipgIP", self.ipg_ip_input.GetValue())
 
-        # Setting up UI
-        self.list_ctrl.DeleteAllItems()
-        self.reload_button.Disable()
-        if self.scrolled_text.IsShown():
-            self.scrolled_text.Hide()
-            self.list_ctrl.Show()
+        start_thread = threading.Thread(target=self.on_start_thread)
+        if self.test_in_progress:
+            self.start_button.SetLabel("Start")
+            self.reload_button.Enable()
+            self.test_in_progress = False
+            if self.timer.IsRunning():
+                self.timer.Stop()
+            self.parent.SetStatusText(f"Test Stopped Abruptly :(")
+        else:
+            # Setting up UI
+            self.list_ctrl.DeleteAllItems()
+            self.reload_button.Disable()
+            if self.scrolled_text.IsShown():
+                self.scrolled_text.Hide()
+                self.list_ctrl.Show()
+            self.start_button.SetLabel("Stop")
+            self.test_in_progress = True
+            self.timer.Start(200)
+            # Starting the threads
+            start_thread.start()
         self.main_vbox.Layout()
 
-        # Starting the thread
-        animate_thread = threading.Thread(target=self.animate_test_progress)
-        animate_thread.start()
-
-        start_thread = threading.Thread(target=self.on_start_thread)
-        start_thread.start()
-
-    def animate_test_progress(self):
-        self.test_in_progress = True
-        while self.test_in_progress:
-            for x in range(6):
-                self.parent.SetStatusText("Test in progress" + "." * (x + 1))
-                time.sleep(0.5)
-        self.parent.SetStatusText("Test Complete :)")
-        self.reload_button.Enable()
+    def OnTimer(self, event):
+        """Called periodically while the flooder threads are running."""
+        self.animation_counter += 1
+        self.parent.SetStatusText(f"Test in progress{'.' * (self.animation_counter % 10)}")
 
     def on_start_thread(self):
-
-        # for i in range(5):
-        #     index = self.list_ctrl.InsertItem(i, '')
-        #     self.list_ctrl.SetItem(index, 1, 'Item %d' % i)
-        #     self.list_ctrl.SetItem(index, 2, 'Image %d' % i)  # Set the image in the third column
-        #     if i%2 == 0:
-        #         self.list_ctrl.SetItemImage(index, self.idx_neutral)
-        #     time.sleep(1)
+        for i in range(5):
+            if not self.test_in_progress:
+                return
+            index = self.list_ctrl.InsertItem(i, '')
+            self.list_ctrl.SetItem(index, 1, 'Item %d' % i)
+            self.list_ctrl.SetItem(index, 2, 'Image %d' % i)  # Set the image in the third column
+            if i%2 == 0:
+                self.list_ctrl.SetItemImage(index, self.idx_neutral)
+            time.sleep(1)
 
         # Getting the UI configuration
-        MAGNUM_IP = self.magnum_input.GetValue()
-        INTERFACE_PORT = self.port_input.GetValue()
-        PHABRIXIP = self.phabrixIP_input.GetValue()
-        IPG_IP = self.ipg_ip_input.GetValue()
-
-        http = ahttp.start()  # Starting http to connect to the webpage
-        phabrix = phabrixlib.Phabrix(IP=PHABRIXIP, port=2100, timeout=2.0,
-                                     encoding='utf8')  # Connecting to the phabrix
-
-        port = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        port.connect((MAGNUM_IP, int(INTERFACE_PORT)))  # Connecting to magnum interface for routing
-        port.settimeout(3)
-
-        # Setting the phabrix out to AV delay
-        phabrix.SetValue(ID="COM_GEN1_PATTERN_SEL", value=3)
-
-        # setting the ipg output
-        for out in self.config.OUTS:
-            cmd = '.SVABCDEFGHIJKLMNOPQRS%03d,%03d\r' % (1, out)
-            port.send(cmd.encode())
-
-            # Setting the standard on phabrix
-            for n, format in enumerate(self.config.PHABRIX_VALUE):
-                if format[0] == "INVALID" or format[1] == "INVALID" or format[2] == "INVALID":
-                    continue
-
-                phabrix.SetValue(ID="COM_GEN1_LINK_TYPE", value=format[0])  # HD eg
-                phabrix.SetValue(ID="COM_GEN1_LINES", value=format[1])  # 720p eg
-                phabrix.SetValue(ID="COM_GEN1_RATE", value=format[2])  # 59.94 eg
-
-                # Looping the value between 0 and 1 (Bypass and timestamp)
-                for sync in self.config.OUTPUT_AV_SYNC:
-                    http.set_cfgjson(IPG_IP, {f'816.{out - 1}@i': sync})
-                    # Setting vertical offset
-                    for v in self.config.VERTICAL_OFFSET:
-                        http.set_cfgjson(IPG_IP, {f'159.{out - 1}@i': v})
-                        # Setting the AES67 IP Output packet time
-                        for aes67 in self.config.AES67:
-                            http.set_cfgjson(IPG_IP, {'638@i': aes67})
-                            # Sleeping after setting up all the devices
-                            time.sleep(self.config.DELAY)
-
-                            # Setting values complete
-                            # Checking if all the values are set
-                            # Declaring the data to be set
-                            aes = ''
-                            outputAV = ''
-                            outputAV_value = http.get_cfgjson(IPG_IP, [f'816.{out - 1}@i']).result[f'816.{out - 1}@i']
-                            if outputAV_value == 0:
-                                outputAV = "Bypass"
-                            elif outputAV_value == 1:
-                                outputAV = "Timestamp"
-                            voffset = http.get_cfgjson(IPG_IP, [f'159.{out - 1}@i']).result[f'159.{out - 1}@i']
-
-                            aesValue = http.get_cfgjson(IPG_IP, ['638@i']).result['638@i']
-                            if aesValue == 0:
-                                aes = "125us"
-                            elif aesValue == 1:
-                                aes = "1ms"
-
-                            format = phabrix.get_text(560)  # Format on phabrix
-                            # Now reading the left and right value
-                            left_measurement = phabrix.GetText(2402)
-                            right_measurement = phabrix.GetText(2403)
-
-                            # Checking if it passed or failed
-                            EXP = self.config.EXPECTED.get(
-                                self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
-                                + str(aes), ['?', '?'])
-
-                            # Checking if the result was not found in text file
-                            if EXP[0] != '?' and EXP[1] != '?':
-                                if EXP[0] <= float(left_measurement[:-2]) <= EXP[1] and EXP[0] <= float(
-                                        right_measurement[:-2]) <= EXP[1]:
-                                    result = "Pass"
-                                else:
-                                    result = "Fail"
-                            else:
-                                result = '?'
-
-                            i = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
-                                                          '')
-                            if result == 'Pass':
-                                self.list_ctrl.SetItemImage(i, self.idx_pass)
-                            elif result == 'Fail':
-                                self.list_ctrl.SetItemImage(i, self.idx_fail)
-                            elif result == '?':
-                                self.list_ctrl.SetItemImage(i, self.idx_neutral)
-                            self.list_ctrl.SetItem(i, 1, str(i + 1))
-                            self.list_ctrl.SetItem(i, 2, str(out))
-                            self.list_ctrl.SetItem(i, 3, format)
-                            self.list_ctrl.SetItem(i, 4, outputAV)
-                            self.list_ctrl.SetItem(i, 5, str(voffset))
-                            self.list_ctrl.SetItem(i, 6, aes)
-                            self.list_ctrl.SetItem(i, 7, right_measurement)
-                            self.list_ctrl.SetItem(i, 8, left_measurement)
-                            self.list_ctrl.SetItem(i, 9, str(EXP[0]))
-                            self.list_ctrl.SetItem(i, 10, str(EXP[1]))
-
-                            self.config.test_result.append(
-                                [len(self.config.test_result) + 1, out, format, outputAV, voffset, aes,
-                                 right_measurement, left_measurement, EXP[0], EXP[1], result])
-        phabrix.close()
+        # MAGNUM_IP = self.magnum_input.GetValue()
+        # INTERFACE_PORT = self.port_input.GetValue()
+        # PHABRIXIP = self.phabrixIP_input.GetValue()
+        # IPG_IP = self.ipg_ip_input.GetValue()
+        #
+        # http = ahttp.start()  # Starting http to connect to the webpage
+        # phabrix = phabrixlib.Phabrix(IP=PHABRIXIP, port=2100, timeout=2.0,
+        #                              encoding='utf8')  # Connecting to the phabrix
+        #
+        # port = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # port.connect((MAGNUM_IP, int(INTERFACE_PORT)))  # Connecting to magnum interface for routing
+        # port.settimeout(3)
+        #
+        # # Setting the phabrix out to AV delay
+        # phabrix.SetValue(ID="COM_GEN1_PATTERN_SEL", value=3)
+        #
+        # # setting the ipg output
+        # for out in self.config.OUTS:
+        #     if not self.test_in_progress:
+        #         break
+        #     cmd = '.SVABCDEFGHIJKLMNOPQRS%03d,%03d\r' % (1, out)
+        #     port.send(cmd.encode())
+        #
+        #     # Setting the standard on phabrix
+        #     for n, format in enumerate(self.config.PHABRIX_VALUE):
+        #         if not self.test_in_progress:
+        #             break
+        #         if format[0] == "INVALID" or format[1] == "INVALID" or format[2] == "INVALID":
+        #             continue
+        #
+        #         phabrix.SetValue(ID="COM_GEN1_LINK_TYPE", value=format[0])  # HD eg
+        #         phabrix.SetValue(ID="COM_GEN1_LINES", value=format[1])  # 720p eg
+        #         phabrix.SetValue(ID="COM_GEN1_RATE", value=format[2])  # 59.94 eg
+        #
+        #         # Looping the value between 0 and 1 (Bypass and timestamp)
+        #         for sync in self.config.OUTPUT_AV_SYNC:
+        #             if not self.test_in_progress:
+        #                 break
+        #             http.set_cfgjson(IPG_IP, {f'816.{out - 1}@i': sync})
+        #             # Setting vertical offset
+        #             for v in self.config.VERTICAL_OFFSET:
+        #                 if not self.test_in_progress:
+        #                     break
+        #                 http.set_cfgjson(IPG_IP, {f'159.{out - 1}@i': v})
+        #                 # Setting the AES67 IP Output packet time
+        #                 for aes67 in self.config.AES67:
+        #                     if not self.test_in_progress:
+        #                         break
+        #                     http.set_cfgjson(IPG_IP, {'638@i': aes67})
+        #                     # Sleeping after setting up all the devices
+        #                     time.sleep(self.config.DELAY)
+        #
+        #                     # Setting values complete
+        #                     # Checking if all the values are set
+        #                     # Declaring the data to be set
+        #                     aes = ''
+        #                     outputAV = ''
+        #                     outputAV_value = http.get_cfgjson(IPG_IP, [f'816.{out - 1}@i']).result[f'816.{out - 1}@i']
+        #                     if outputAV_value == 0:
+        #                         outputAV = "Bypass"
+        #                     elif outputAV_value == 1:
+        #                         outputAV = "Timestamp"
+        #                     voffset = http.get_cfgjson(IPG_IP, [f'159.{out - 1}@i']).result[f'159.{out - 1}@i']
+        #
+        #                     aesValue = http.get_cfgjson(IPG_IP, ['638@i']).result['638@i']
+        #                     if aesValue == 0:
+        #                         aes = "125us"
+        #                     elif aesValue == 1:
+        #                         aes = "1ms"
+        #
+        #                     format = phabrix.get_text(560)  # Format on phabrix
+        #                     # Now reading the left and right value
+        #                     left_measurement = phabrix.GetText(2402)
+        #                     right_measurement = phabrix.GetText(2403)
+        #
+        #                     # Checking if it passed or failed
+        #                     EXP = self.config.EXPECTED.get(
+        #                         self.config.FORMATS[n][1] + self.config.FORMATS[n][2] + str(outputAV) + str(voffset)
+        #                         + str(aes), ['?', '?'])
+        #
+        #                     # Checking if the result was not found in text file
+        #                     if EXP[0] != '?' and EXP[1] != '?':
+        #                         if EXP[0] <= float(left_measurement[:-2]) <= EXP[1] and EXP[0] <= float(
+        #                                 right_measurement[:-2]) <= EXP[1]:
+        #                             result = "Pass"
+        #                         else:
+        #                             result = "Fail"
+        #                     else:
+        #                         result = '?'
+        #
+        #                     i = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(),
+        #                                                   '')
+        #                     if result == 'Pass':
+        #                         self.list_ctrl.SetItemImage(i, self.idx_pass)
+        #                     elif result == 'Fail':
+        #                         self.list_ctrl.SetItemImage(i, self.idx_fail)
+        #                     elif result == '?':
+        #                         self.list_ctrl.SetItemImage(i, self.idx_neutral)
+        #                     self.list_ctrl.SetItem(i, 1, str(i + 1))
+        #                     self.list_ctrl.SetItem(i, 2, str(out))
+        #                     self.list_ctrl.SetItem(i, 3, format)
+        #                     self.list_ctrl.SetItem(i, 4, outputAV)
+        #                     self.list_ctrl.SetItem(i, 5, str(voffset))
+        #                     self.list_ctrl.SetItem(i, 6, aes)
+        #                     self.list_ctrl.SetItem(i, 7, right_measurement)
+        #                     self.list_ctrl.SetItem(i, 8, left_measurement)
+        #                     self.list_ctrl.SetItem(i, 9, str(EXP[0]))
+        #                     self.list_ctrl.SetItem(i, 10, str(EXP[1]))
+        #
+        #                     self.config.test_result.append(
+        #                         [len(self.config.test_result) + 1, out, format, outputAV, voffset, aes,
+        #                          right_measurement, left_measurement, EXP[0], EXP[1], result])
+        # phabrix.close()
         self.test_in_progress = False
-        print(self.config.test_result)
+        self.reload_button.Enable()
+        self.start_button.SetLabel("Start")
+        if self.timer.IsRunning():
+            self.timer.Stop()
+        self.parent.SetStatusText(f"Test Completed :)")
 
     def on_reload(self, event):
         self.config.load_config()
