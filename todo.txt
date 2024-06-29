@@ -1,2 +1,12 @@
-0 and 4 not showing in vertical offset ??? fix DOne
-start stop animation          do return when not in progress in thread
+1) Check the standard if it is valid show invalid if its not.  - Done
+2) Check pass fail through a text file. - Done
+3) Excel show where to save   - Done
+4) Check if comment  - Done
+5) Clear list control if start again - Done
+6) Let user decide bypass or timestamp - Done
+7) let user decide vertical offset - Done
+8) let user decide aes - Done
+9) add max and min to UI and excel Done
+10) Make the number left align in pyxl excel Done
+11) and 4 not showing in vertical offset ??? fix Done
+12) start stop animation          do return when not in progress in thread               Done
